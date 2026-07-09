@@ -1,29 +1,45 @@
 # table 4 work
+
 library(tidyverse)
 library(haven)
+library(modelsummary)
+library(broom)
+source("helpers.R")
 
 # loading the data sets
 census_data_raw = read_dta("data/matched_censusdata.dta")
 # view(census_data_raw) ; glimpse(census_data_raw)
 
 # looking at the variables
-# names(census_data_raw)
+names(census_data_raw) ; nrow(census_data_raw)
 
 # creating a table of the variables and their labels for convenience
 var_labels = tibble(
   variable = names(census_data_raw),
   label = map_chr(census_data_raw, ~ attr(.x, "label") %||% NA_character_)
-)
+) %>% data.frame()
+
 str(census_data_raw)
 
-# in the generation of table 4 she uses the following critical varaibles
-# gradient, km to grid, household density, poverty rate,
-# female-headed house holds, adult sex ratio, porportion headed by indian/white adults, km to road
-# km to town, men with high school, women with high school, change in water access and 
-# change in toilet access. 
+# from the original dataset she reduced it from 1992 to 1816 communities by eliminating
+# communities that had fewer than 100 adults in either year
+# we'll do the same for accuracy of replicaton
 
-# I'm going to look through the data and isolate the rows containing those specific 
-# variables and the indicator variable (T) for whether or not a household was treated
+census_data_v1 = census_data_raw %>% filter(
+  !(adult_african_f0 + adult_african_m0 < 100 | adult_african_f1 + adult_african_m1 < 100) | is.na(T)
+)
+
+nrow(census_data_v1) # observed total # of rows is 1818 not the 1816 used in her sample
+
+# Checking if the communities with eskom project (365) and without (1451) match the paper.
+census_data_v1 %>% filter(T==0) %>% nrow() # checking without eskom (1453) -- doesn't match 
+census_data_v1 %>% filter(T==1) %>% nrow() # checking with eskom (365) -- matches
+
+# checking if there are any communities with exactly 100 adults
+census_data_v1 %>% filter((adult_african_f0 + adult_african_m0) == 100 |
+                            (adult_african_f1 + adult_african_m1) == 100) %>% nrow()
+
+# creating lists with critical variables
 control_variables = c("mean_grad_new", # gradient
                       "sexratio0_a", # adult sex ratio
                       "prop_head_f_a0", # female headed households
@@ -36,19 +52,20 @@ control_variables = c("mean_grad_new", # gradient
                       "prop_matric_f0", # proportion of females with highschool
                       "prop_matric_m0", # poportion of males with highschool
                       "d_prop_waterclose", # change in water access
-                      "d_prop_flush" # change in toilet access
+                      "d_prop_flush", # change in toilet access
+                      "dccode0" # district code
                       )
 dep_variables = c("d_prop_emp_f", # change in proportion of employed females
-                       "d_prop_emp_m" # change in proportion of employed males
-                       )
+                  "d_prop_emp_m" # change in proportion of employed males
+                  )
 vars = c(control_variables, dep_variables, "T")
 
 # filtering the data to select only these critical columns
-census_data_clean = census_data_raw %>% select(all_of(vars)) ; glimpse(census_data_clean)
+census_data_v2 = census_data_v1 %>% select(all_of(vars)) ; glimpse(census_data_v2)
 # nrow(census_data_clean) - nrow(census_data_raw) 
 
 # renaming variables for ease of use in final wokring dataset
-census_data = census_data_clean %>% rename(
+census_data = census_data_v2 %>% rename(
     gradient = mean_grad_new,
     sexratio = sexratio0_a,
     female_hh = prop_head_f_a0,
@@ -64,7 +81,8 @@ census_data = census_data_clean %>% rename(
     d_toilet = d_prop_flush,
     d_emp_f = d_prop_emp_f,
     d_emp_m = d_prop_emp_m,
-    treatment = T
+    treatment = T,
+    district = dccode0,
   )
 
 glimpse(census_data)
@@ -79,12 +97,65 @@ census_data = census_data %>% mutate(
   indianwhite10 = indianwhite*10
 )
 
-# plotting first column without controls (bare treatment effect)
-r1 = lm(data=census_data, formula = d_emp_f ~ treatment)
-summary(r1)
+# treating district as a factor to isolate district effects
+census_data$district = as.factor(census_data$district)
+# checking we have 10 levels like in her paper
+nlevels(census_data$district)
 
-# plotting the regression with the controls
-r4 = lm(data=census_data, formula = d_emp_f ~ treatment + gradient10 + kms_grid10 + kms_road10
-        + kms_town10 + hh_density10 + indianwhite10 + matric_f + matric_m + d_water + d_toilet
-        + poverty + sexratio)
-summary(r4)
+# plotting first column without controls (bare treatment effect)
+c1 = lm(data=census_data, formula = d_emp_f ~ treatment)
+summary(c1) # observed we're roughly at the same estimate for treatment effect
+# slightly different for the standard errors ( observed ~0.004 vs. ~0.005 in the paper)
+# given the differences in sample size this is likely a knock on effect
+
+
+# plotting the 4th column
+c4 = lm(data=census_data, formula = d_emp_f ~ treatment +
+          poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+          kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
+
+summary(c4)
+(modelsummary(c(c1,c4)))
+
+# generating the results table
+results_table = data.frame(
+  # First Columns with variables
+  Variable = c(
+    "Eskom Project", "",
+    "Poverty rate", "",
+    "Female-headed HH's", "",
+    "Adult sex-ratio", "",
+    "Baseline controls?",
+    "District fixed effects?",
+    "Change in other services?",
+    "N of communities"
+  ), 
+  
+  # Column 1 variables
+  "Column 1" = c(
+    extract_coef(c1, "treatment"),
+    extract_coef(c1, "poverty"),
+    extract_coef(c1, "female_hh"),
+    extract_coef(c1, "sexratio"),
+    "No",
+    "No",
+    "No",
+    "1818"
+  ),
+  
+  # Column 4 variables
+  "Column 4" = c(
+    extract_coef(c4, "treatment"),
+    extract_coef(c4, "poverty"),
+    extract_coef(c4, "female_hh"),
+    extract_coef(c4, "sexratio"),
+    "Yes",
+    "Yes",
+    "Yes",
+    "1818"
+  ),
+  
+  check.names = FALSE
+)
+
+results_table
