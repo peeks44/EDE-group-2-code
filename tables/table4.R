@@ -24,20 +24,11 @@ str(census_data_raw)
 # from the original dataset she reduced it from 1992 to 1816 communities by eliminating
 # communities that had fewer than 100 adults in either year
 # we'll do the same for accuracy of replicaton
-
-census_data_v1 = census_data_raw %>% filter(
-  !(adult_african_f0 + adult_african_m0 < 100 | adult_african_f1 + adult_african_m1 < 100) | is.na(T)
-)
+# in her paper she uses the indicator "largeareas" to isolate these variables
+census_data_v1 = census_data_raw %>% filter(largeareas==1)
 
 nrow(census_data_v1) # observed total # of rows is 1818 not the 1816 used in her sample
 
-# Checking if the communities with eskom project (365) and without (1451) match the paper.
-census_data_v1 %>% filter(T==0) %>% nrow() # checking without eskom (1453) -- doesn't match 
-census_data_v1 %>% filter(T==1) %>% nrow() # checking with eskom (365) -- matches
-
-# checking if there are any communities with exactly 100 adults
-census_data_v1 %>% filter((adult_african_f0 + adult_african_m0) == 100 |
-                            (adult_african_f1 + adult_african_m1) == 100) %>% nrow()
 
 # creating lists with critical variables
 control_variables = c("mean_grad_new", # gradient
@@ -115,7 +106,6 @@ c4 = lm(data=census_data, formula = d_emp_f ~ treatment +
           kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
 
 summary(c4)
-(modelsummary(c(c1,c4)))
 
 # generating the results table
 results_table = data.frame(
@@ -140,7 +130,7 @@ results_table = data.frame(
     "No",
     "No",
     "No",
-    "1818"
+    "1816"
   ),
   
   # Column 4 variables
@@ -152,7 +142,7 @@ results_table = data.frame(
     "Yes",
     "Yes",
     "Yes",
-    "1818"
+    "1816"
   ),
   
   check.names = FALSE
