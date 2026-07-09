@@ -6,6 +6,10 @@ library(modelsummary)
 library(broom)
 source("helpers.R")
 
+# ———————————————————————————
+# Loading and cleaning data
+# ———————————————————————————
+
 # loading the data sets
 census_data_raw = read_dta("data/matched_censusdata.dta")
 # view(census_data_raw) ; glimpse(census_data_raw)
@@ -93,59 +97,59 @@ census_data$district = as.factor(census_data$district)
 # checking we have 10 levels like in her paper
 nlevels(census_data$district)
 
+# ———————————————————————————
+# Table 4 : Female Employment
+# ———————————————————————————
+
 # plotting first column without controls (bare treatment effect)
-c1 = lm(data=census_data, formula = d_emp_f ~ treatment)
-summary(c1) # observed we're roughly at the same estimate for treatment effect
+t4_c1 = lm(data=census_data, formula = d_emp_f ~ treatment)
+summary(t4_c1) # observed we're roughly at the same estimate for treatment effect
 # slightly different for the standard errors ( observed ~0.004 vs. ~0.005 in the paper)
 # given the differences in sample size this is likely a knock on effect
 
 
 # plotting the 4th column
-c4 = lm(data=census_data, formula = d_emp_f ~ treatment +
+t4_c4 = lm(data=census_data, formula = d_emp_f ~ treatment +
           poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
           kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
 
-summary(c4)
+summary(t4_c4)
 
 # generating the results table
-results_table = data.frame(
-  # First Columns with variables
-  Variable = c(
-    "Eskom Project", "",
-    "Poverty rate", "",
-    "Female-headed HH's", "",
-    "Adult sex-ratio", "",
-    "Baseline controls?",
-    "District fixed effects?",
-    "Change in other services?",
-    "N of communities"
-  ), 
-  
-  # Column 1 variables
-  "Column 1" = c(
-    extract_coef(c1, "treatment"),
-    extract_coef(c1, "poverty"),
-    extract_coef(c1, "female_hh"),
-    extract_coef(c1, "sexratio"),
-    "No",
-    "No",
-    "No",
-    "1816"
-  ),
-  
-  # Column 4 variables
-  "Column 4" = c(
-    extract_coef(c4, "treatment"),
-    extract_coef(c4, "poverty"),
-    extract_coef(c4, "female_hh"),
-    extract_coef(c4, "sexratio"),
-    "Yes",
-    "Yes",
-    "Yes",
-    "1816"
-  ),
-  
-  check.names = FALSE
-)
+table4 = results_table_4_5_generator(t4_c1,t4_c4)
 
-results_table
+# TODO: t4_c8
+#
+#
+#
+
+# printing output in terminal
+table4
+
+# ———————————————————————————
+# Table 5 : Male Employment
+# ———————————————————————————
+
+
+# repeating for table 5 simply changing the dependant variable
+t5_c1 = lm(data=census_data, formula = d_emp_m ~ treatment)
+summary(t5_c1)
+# plotting the 4th column
+t5_c4 = lm(data=census_data, formula = d_emp_m ~ treatment +
+             poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+             kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
+summary(t5_c4)
+table5 = results_table_4_5_generator(t5_c1,t5_c4)
+
+# TODO: t5_c8
+#
+#
+#
+
+# printing output in terminal
+table5
+
+# ——————————————————————————
+#
+#
+write_csv(out)
