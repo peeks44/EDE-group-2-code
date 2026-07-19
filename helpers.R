@@ -11,7 +11,6 @@ extract_coef = function(model, var) {
   estimate = coef_table[var, "Estimate"]
   standard_error = coef_table[var, "Std. Error"]
   p_value = coef_table[var, "Pr(>|t|)"]
-  
   stars = ifelse(p_value < 0.01, "***", ifelse(
     p_value < 0.05 ,"**", ifelse(
       p_value < 0.1, "*", ""
@@ -21,7 +20,7 @@ extract_coef = function(model, var) {
 }
 
 # generating the results table
-results_table_4_5_generator = function(c1, c4) {
+results_table_4_5_generator = function(c1, c4, c8) {
   return(data.frame(
     # First Columns with variables
     Variable = c(
@@ -53,6 +52,18 @@ results_table_4_5_generator = function(c1, c4) {
       extract_coef(c4, "poverty"),
       extract_coef(c4, "female_hh"),
       extract_coef(c4, "sexratio"),
+      "Yes",
+      "Yes",
+      "Yes",
+      "1816"
+    ),
+    
+    # Column 4 variables
+    "Column 8 (IV)" = c(
+      extract_coef(c8, "treatment"),
+      extract_coef(c8, "poverty"),
+      extract_coef(c8, "female_hh"),
+      extract_coef(c8, "sexratio"),
       "Yes",
       "Yes",
       "Yes",

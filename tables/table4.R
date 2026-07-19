@@ -1,9 +1,9 @@
 # table 4 work
-
 library(tidyverse)
 library(haven)
 library(modelsummary)
 library(broom)
+library(AER) # IV
 source("helpers.R")
 
 # ———————————————————————————
@@ -113,18 +113,23 @@ t4_c4 = lm(data=census_data, formula = d_emp_f ~ treatment +
           poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
           kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
 
-summary(t4_c4)
+# plotting the 8th column using IV
+t4_c8 = ivreg(data=census_data, 
+              d_emp_f ~ treatment +
+                poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+                kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district | 
+              gradient + poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+                kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
+summary(t4_c8, diagnostics = TRUE)
 
 # generating the results table
-table4 = results_table_4_5_generator(t4_c1,t4_c4)
+table4 = results_table_4_5_generator(t4_c1,t4_c4, t4_c8)
 
 # TODO: t4_c8
 #
 #
 #
 
-# printing output in terminal
-table4
 
 # ———————————————————————————
 # Table 5 : Male Employment
@@ -133,23 +138,41 @@ table4
 
 # repeating for table 5 simply changing the dependant variable
 t5_c1 = lm(data=census_data, formula = d_emp_m ~ treatment)
-summary(t5_c1)
+# summary(t5_c1)
 # plotting the 4th column
 t5_c4 = lm(data=census_data, formula = d_emp_m ~ treatment +
              poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
              kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
-summary(t5_c4)
-table5 = results_table_4_5_generator(t5_c1,t5_c4)
+# the 8th column
+t5_c8 = ivreg(data=census_data, 
+              d_emp_m ~ treatment +
+                poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+                kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district | 
+                gradient + poverty + female_hh + sexratio + hh_density + indianwhite + kms_road +
+                kms_town + kms_grid + matric_f + matric_m + d_water + d_toilet + district)
+summary(t5_c8, diagnostics = TRUE)
+# summary(t5_c4)
+table5 = results_table_4_5_generator(t5_c1,t5_c4, t5_c8)
 
 # TODO: t5_c8
 #
 #
 #
 
-# printing output in terminal
-table5
 
 # ——————————————————————————
-#
-#
-write_csv(out)
+# Writing output to csv file for formatting
+# ——————————————————————————
+
+write.csv(table4, "tables/tables_4.csv", row.names=FALSE)
+write.csv(table5, "tables/tables_5.csv", row.names=FALSE)
+
+# ——————————————————————————
+# printing output in terminal
+# ——————————————————————————
+
+print("Table 4 : Female Unemployment") ; table4
+
+print("Table 5 : Male Unemployment") ; table5
+
+
